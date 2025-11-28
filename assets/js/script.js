@@ -78,7 +78,7 @@ function switchToSession(sessionId) {
         // Update persona select
         if (session.personaId) {
             document.getElementById('personaSelect').value = session.personaId;
-            updatePersonaDescription();
+            displayPersonaInfo(personas[session.personaId]);
         }
         // Load messages
         loadSessionMessages(session);
