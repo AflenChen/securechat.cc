@@ -2,6 +2,174 @@
 // Configuration Management
 // ============================================
 const CONFIG_KEY = 'securechat_config';
+const SESSIONS_KEY = 'securechat_sessions';
+const CURRENT_SESSION_KEY = 'securechat_current_session';
+
+// ============================================
+// Session Management
+// ============================================
+let sessions = [];
+let currentSessionId = null;
+
+function getSessions() {
+    const stored = localStorage.getItem(SESSIONS_KEY);
+    return stored ? JSON.parse(stored) : [];
+}
+
+function saveSessions() {
+    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+}
+
+function getCurrentSessionId() {
+    return localStorage.getItem(CURRENT_SESSION_KEY);
+}
+
+function setCurrentSessionId(sessionId) {
+    currentSessionId = sessionId;
+    localStorage.setItem(CURRENT_SESSION_KEY, sessionId);
+}
+
+function createSession(personaId = null) {
+    const sessionId = 'session_' + Date.now();
+    const session = {
+        id: sessionId,
+        personaId: personaId,
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+    };
+    sessions.push(session);
+    saveSessions();
+    return session;
+}
+
+function getSession(sessionId) {
+    return sessions.find(s => s.id === sessionId);
+}
+
+function updateSession(sessionId, updates) {
+    const session = getSession(sessionId);
+    if (session) {
+        Object.assign(session, updates);
+        session.updatedAt = Date.now();
+        saveSessions();
+    }
+}
+
+function deleteSession(sessionId) {
+    sessions = sessions.filter(s => s.id !== sessionId);
+    saveSessions();
+    if (currentSessionId === sessionId) {
+        if (sessions.length > 0) {
+            switchToSession(sessions[0].id);
+        } else {
+            currentSessionId = null;
+            setCurrentSessionId(null);
+            clearChatMessages();
+        }
+    }
+}
+
+function switchToSession(sessionId) {
+    currentSessionId = sessionId;
+    setCurrentSessionId(sessionId);
+    const session = getSession(sessionId);
+    if (session) {
+        // Update persona select
+        if (session.personaId) {
+            document.getElementById('personaSelect').value = session.personaId;
+            updatePersonaDescription();
+        }
+        // Load messages
+        loadSessionMessages(session);
+    }
+    renderSessionsList();
+}
+
+function loadSessionMessages(session) {
+    clearChatMessages();
+    session.messages.forEach(msg => {
+        const persona = msg.personaId ? personas[msg.personaId] : null;
+        addMessage(msg.role, msg.content, persona, msg.isError, false);
+    });
+}
+
+function clearChatMessages() {
+    const chatMessages = document.getElementById('chatMessages');
+    chatMessages.innerHTML = '';
+}
+
+function getCurrentSession() {
+    if (!currentSessionId) {
+        return null;
+    }
+    return getSession(currentSessionId);
+}
+
+function ensureSession(personaId) {
+    const currentSession = getCurrentSession();
+    
+    // If no current session, create one
+    if (!currentSession) {
+        const session = createSession(personaId);
+        currentSessionId = session.id;
+        setCurrentSessionId(session.id);
+        renderSessionsList();
+        return session;
+    }
+    
+    // If current session has messages and persona changed, create new session
+    if (currentSession.messages.length > 0 && currentSession.personaId !== personaId) {
+        const session = createSession(personaId);
+        currentSessionId = session.id;
+        setCurrentSessionId(session.id);
+        renderSessionsList();
+        return session;
+    }
+    
+    // Update persona if changed
+    if (currentSession.personaId !== personaId) {
+        updateSession(currentSession.id, { personaId: personaId });
+    }
+    
+    return currentSession;
+}
+
+function renderSessionsList() {
+    const sessionsList = document.getElementById('sessionsList');
+    sessionsList.innerHTML = '';
+    
+    if (sessions.length === 0) {
+        sessionsList.innerHTML = '<div class="no-sessions">No sessions yet</div>';
+        return;
+    }
+    
+    // Sort by updatedAt (newest first)
+    const sortedSessions = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt);
+    
+    sortedSessions.forEach(session => {
+        const sessionDiv = document.createElement('div');
+        sessionDiv.className = `session-item ${session.id === currentSessionId ? 'active' : ''}`;
+        
+        const persona = session.personaId ? personas[session.personaId] : null;
+        const personaName = persona ? persona.name : 'No Persona';
+        const personaIcon = persona ? persona.icon : '💬';
+        const messageCount = session.messages.length;
+        
+        sessionDiv.innerHTML = `
+            <div class="session-content" onclick="switchToSession('${session.id}')">
+                <div class="session-icon">${personaIcon}</div>
+                <div class="session-info">
+                    <div class="session-name">${personaName}</div>
+                    <div class="session-meta">${messageCount} message${messageCount !== 1 ? 's' : ''}</div>
+                </div>
+            </div>
+            <button class="session-delete" onclick="deleteSession('${session.id}')" title="Delete session">×</button>
+        `;
+        
+        sessionsList.appendChild(sessionDiv);
+    });
+}
 
 function getConfig() {
     const config = localStorage.getItem(CONFIG_KEY);
@@ -129,10 +297,31 @@ const personas = {
 // Initialize after DOM loads
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize sessions
+    sessions = getSessions();
+    currentSessionId = getCurrentSessionId();
+    
+    // If no current session, create one
+    if (!currentSessionId || !getSession(currentSessionId)) {
+        if (sessions.length > 0) {
+            currentSessionId = sessions[0].id;
+        } else {
+            const session = createSession();
+            currentSessionId = session.id;
+        }
+        setCurrentSessionId(currentSessionId);
+    }
+    
     initializePersonas();
     setupEventListeners();
     checkInitialConfig();
-    loadChatHistory();
+    renderSessionsList();
+    
+    // Load current session messages
+    const currentSession = getCurrentSession();
+    if (currentSession && currentSession.messages.length > 0) {
+        loadSessionMessages(currentSession);
+    }
 });
 
 function checkInitialConfig() {
@@ -368,12 +557,24 @@ async function sendMessage() {
     const persona = personas[personaSelect.value];
     const userMessage = messageInput.value.trim();
     
+    // Ensure session exists and is correct
+    const session = ensureSession(personaSelect.value);
+    
     // Clear input
     messageInput.value = '';
     messageInput.style.height = 'auto';
     
     // Add user message to chat
-    addMessage('user', userMessage);
+    const userMessageElement = addMessage('user', userMessage);
+    
+    // Save user message to session
+    session.messages.push({
+        role: 'user',
+        content: userMessage,
+        personaId: persona.id,
+        timestamp: Date.now()
+    });
+    updateSession(session.id, { messages: session.messages });
     
     // Add AI message placeholder for streaming
     const aiMessageElement = addMessage('ai', '', persona, false, true);
@@ -393,14 +594,24 @@ async function sendMessage() {
         
         console.log('Message generation completed successfully');
         
-        // Save to history
-        saveChatHistory();
+        // Get final content and save to session
+        const finalContent = aiMessageElement.querySelector('.message-text').innerText || 
+                            aiMessageElement.querySelector('.message-text').textContent;
+        
+        session.messages.push({
+            role: 'ai',
+            content: finalContent,
+            personaId: persona.id,
+            timestamp: Date.now()
+        });
+        updateSession(session.id, { messages: session.messages });
+        renderSessionsList();
     } catch (error) {
         console.error('Error generating reply:', error);
         let errorMessage = 'Sorry, I encountered an error. ';
         
         if (error.message.includes('Failed to connect')) {
-            errorMessage += 'Please make sure your local AI service is running at ' + (getConfig()?.apiEndpoint || 'http://localhost:3000/v1/chat/completions');
+            errorMessage += 'Please make sure your local AI service is running at ' + (getConfig()?.apiEndpoint || 'http://localhost:3001/v1/chat/completions');
         } else if (error.message.includes('not configured')) {
             errorMessage += 'Please configure your local AI endpoint in settings (click the ⚙️ button).';
         } else {
@@ -408,6 +619,16 @@ async function sendMessage() {
         }
         
         updateMessageContent(aiMessageElement, errorMessage, true);
+        
+        // Save error message to session
+        session.messages.push({
+            role: 'ai',
+            content: errorMessage,
+            personaId: persona.id,
+            isError: true,
+            timestamp: Date.now()
+        });
+        updateSession(session.id, { messages: session.messages });
     } finally {
         sendBtn.disabled = false;
     }
@@ -692,12 +913,7 @@ function updateMessageContent(messageElement, content, isError = false) {
 }
 
 function formatMessage(content) {
-    // Format markdown-like content
-    let formatted = content
-        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-        .replace(/\n/g, '<br>');
-    
-    // Extract and format reply styles
+    // Extract and format reply styles with individual copy buttons
     const professionalMatch = content.match(/\*\*Professional:\*\*\s*([^*]+?)(?=\*\*|$)/s);
     const friendlyMatch = content.match(/\*\*Friendly:\*\*\s*([^*]+?)(?=\*\*|$)/s);
     const assertiveMatch = content.match(/\*\*Assertive:\*\*\s*([^*]+?)(?=\*\*|$)/s);
@@ -707,23 +923,78 @@ function formatMessage(content) {
         let html = '<div class="reply-styles">';
         
         if (professionalMatch) {
-            html += `<div class="reply-card"><div class="reply-header">💼 Professional</div><div class="reply-content">${professionalMatch[1].trim()}</div></div>`;
+            const professionalText = professionalMatch[1].trim();
+            const textId = 'reply-professional-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            html += `
+                <div class="reply-card">
+                    <div class="reply-header">
+                        <span>💼 Professional</span>
+                        <button class="reply-copy-btn" onclick="copyReplyText('${textId}')" title="Copy Professional reply">📋</button>
+                    </div>
+                    <div class="reply-content" id="${textId}">${professionalText.replace(/\n/g, '<br>')}</div>
+                </div>
+            `;
         }
         if (friendlyMatch) {
-            html += `<div class="reply-card"><div class="reply-header">😊 Friendly</div><div class="reply-content">${friendlyMatch[1].trim()}</div></div>`;
+            const friendlyText = friendlyMatch[1].trim();
+            const textId = 'reply-friendly-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            html += `
+                <div class="reply-card">
+                    <div class="reply-header">
+                        <span>😊 Friendly</span>
+                        <button class="reply-copy-btn" onclick="copyReplyText('${textId}')" title="Copy Friendly reply">📋</button>
+                    </div>
+                    <div class="reply-content" id="${textId}">${friendlyText.replace(/\n/g, '<br>')}</div>
+                </div>
+            `;
         }
         if (assertiveMatch) {
-            html += `<div class="reply-card"><div class="reply-header">💪 Assertive</div><div class="reply-content">${assertiveMatch[1].trim()}</div></div>`;
+            const assertiveText = assertiveMatch[1].trim();
+            const textId = 'reply-assertive-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            html += `
+                <div class="reply-card">
+                    <div class="reply-header">
+                        <span>💪 Assertive</span>
+                        <button class="reply-copy-btn" onclick="copyReplyText('${textId}')" title="Copy Assertive reply">📋</button>
+                    </div>
+                    <div class="reply-content" id="${textId}">${assertiveText.replace(/\n/g, '<br>')}</div>
+                </div>
+            `;
         }
         if (analysisMatch) {
-            html += `<div class="reply-card" style="border-left-color: #10a37f;"><div class="reply-header">💡 Analysis</div><div class="reply-content">${analysisMatch[1].trim()}</div></div>`;
+            html += `
+                <div class="reply-card" style="border-left-color: #10a37f;">
+                    <div class="reply-header">💡 Analysis</div>
+                    <div class="reply-content">${analysisMatch[1].trim().replace(/\n/g, '<br>')}</div>
+                </div>
+            `;
         }
         
         html += '</div>';
         return html;
     }
     
+    // Format regular markdown-like content
+    let formatted = content
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+    
     return formatted;
+}
+
+function copyReplyText(elementId) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    // Get text content (remove HTML tags)
+    const text = element.innerText || element.textContent;
+    
+    navigator.clipboard.writeText(text).then(() => {
+        showNotification('Copied to clipboard!', 'success');
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        showNotification('Failed to copy', 'error');
+    });
 }
 
 function copyMessage(button) {
