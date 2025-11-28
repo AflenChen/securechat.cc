@@ -689,7 +689,7 @@ async function generateReplyWithAIStream(persona, userMessage, messageElement) {
     const messages = [
         {
             role: 'system',
-            content: `${persona.systemPrompt}\n\nProvide three reply suggestions in different styles:\n1. Professional - formal and structured\n2. Friendly - warm and approachable\n3. Assertive - confident and direct\n\nFormat your response as:\n\n**Professional:**\n[reply]\n\n**Friendly:**\n[reply]\n\n**Assertive:**\n[reply]\n\n**Analysis:**\n[Why this reply works and bottom-line advice]`
+            content: `${persona.systemPrompt}\n\nProvide three reply suggestions in different styles:\n1. Professional - formal and structured\n2. Friendly - warm and approachable\n3. Assertive - confident and direct\n\nIMPORTANT: You MUST provide an Analysis section with detailed explanation.\n\nFormat your response EXACTLY as:\n\n**Professional:**\n[reply text here]\n\n**Friendly:**\n[reply text here]\n\n**Assertive:**\n[reply text here]\n\n**Analysis:**\n[Provide a detailed analysis explaining: Why each reply style works, what makes them effective, bottom-line advice on which to use, potential risks or considerations, and any hidden emotions or attacks to watch for. This section is REQUIRED and should be comprehensive.]`
         },
         {
             role: 'user',
