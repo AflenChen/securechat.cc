@@ -373,15 +373,38 @@ async function sendMessage() {
     // Add AI message placeholder for streaming
     const aiMessageElement = addMessage('ai', '', persona, false, true);
     
+    // Disable send button during processing
+    const sendBtn = document.getElementById('sendBtn');
+    sendBtn.disabled = true;
+    
     try {
+        console.log('Starting message generation...');
+        console.log('Persona:', persona.name);
+        console.log('User message:', userMessage);
+        console.log('Config:', getConfig());
+        
         // Generate reply using local AI with streaming
         await generateReplyWithAIStream(persona, userMessage, aiMessageElement);
+        
+        console.log('Message generation completed successfully');
         
         // Save to history
         saveChatHistory();
     } catch (error) {
         console.error('Error generating reply:', error);
-        updateMessageContent(aiMessageElement, 'Sorry, I encountered an error. Please check your local AI configuration. Error: ' + error.message, true);
+        let errorMessage = 'Sorry, I encountered an error. ';
+        
+        if (error.message.includes('Failed to connect')) {
+            errorMessage += 'Please make sure your local AI service is running at ' + (getConfig()?.apiEndpoint || 'http://localhost:3000/v1/chat/completions');
+        } else if (error.message.includes('not configured')) {
+            errorMessage += 'Please configure your local AI endpoint in settings (click the ⚙️ button).';
+        } else {
+            errorMessage += 'Error: ' + error.message;
+        }
+        
+        updateMessageContent(aiMessageElement, errorMessage, true);
+    } finally {
+        sendBtn.disabled = false;
     }
 }
 
@@ -390,6 +413,11 @@ async function sendMessage() {
 // ============================================
 async function generateReplyWithAIStream(persona, userMessage, messageElement) {
     const config = getConfig();
+    
+    if (!config || !config.apiEndpoint) {
+        throw new Error('API endpoint not configured. Please configure your local AI endpoint in settings.');
+    }
+    
     const stream = config.stream !== false; // Default to true for local models
     
     const requestBody = {
@@ -414,29 +442,51 @@ async function generateReplyWithAIStream(persona, userMessage, messageElement) {
     };
     
     // Add Authorization header only if API key is provided
-    if (config.apiKey) {
+    if (config.apiKey && config.apiKey.trim()) {
         headers['Authorization'] = `Bearer ${config.apiKey}`;
     }
     
-    const response = await fetch(config.apiEndpoint, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(requestBody)
-    });
+    // Debug logging
+    console.log('Calling local AI API:', config.apiEndpoint);
+    console.log('Request body:', requestBody);
     
-    if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`API Error: ${response.status} - ${error}`);
-    }
-    
-    if (stream) {
-        // Handle streaming response
-        await handleStreamResponse(response, messageElement);
-    } else {
-        // Handle non-streaming response
-        const data = await response.json();
-        const content = data.choices[0].message.content;
-        updateMessageContent(messageElement, content);
+    try {
+        const response = await fetch(config.apiEndpoint, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(requestBody)
+        });
+        
+        console.log('API Response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('API Error:', errorText);
+            throw new Error(`API Error: ${response.status} - ${errorText}`);
+        }
+        
+        if (stream) {
+            // Handle streaming response
+            console.log('Handling streaming response...');
+            await handleStreamResponse(response, messageElement);
+        } else {
+            // Handle non-streaming response
+            console.log('Handling non-streaming response...');
+            const data = await response.json();
+            console.log('API Response data:', data);
+            const content = data.choices?.[0]?.message?.content;
+            if (content) {
+                updateMessageContent(messageElement, content);
+            } else {
+                throw new Error('Invalid response format from API');
+            }
+        }
+    } catch (error) {
+        console.error('Fetch error:', error);
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            throw new Error('Failed to connect to local AI service. Please check if the service is running at ' + config.apiEndpoint);
+        }
+        throw error;
     }
 }
 
@@ -445,22 +495,29 @@ async function handleStreamResponse(response, messageElement) {
     const decoder = new TextDecoder();
     let buffer = '';
     let fullContent = '';
+    let hasContent = false;
     
     try {
         while (true) {
             const { done, value } = await reader.read();
             
-            if (done) break;
+            if (done) {
+                console.log('Stream completed. Total content length:', fullContent.length);
+                break;
+            }
             
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
             buffer = lines.pop() || ''; // Keep incomplete line in buffer
             
             for (const line of lines) {
+                if (!line.trim()) continue; // Skip empty lines
+                
                 if (line.startsWith('data: ')) {
-                    const data = line.slice(6);
+                    const data = line.slice(6).trim();
                     
                     if (data === '[DONE]') {
+                        console.log('Received [DONE] signal');
                         return;
                     }
                     
@@ -469,15 +526,47 @@ async function handleStreamResponse(response, messageElement) {
                         const delta = json.choices?.[0]?.delta?.content;
                         
                         if (delta) {
+                            hasContent = true;
                             fullContent += delta;
                             updateMessageContent(messageElement, fullContent);
                         }
                     } catch (e) {
-                        // Skip invalid JSON
+                        console.warn('Failed to parse JSON:', data, e);
+                        // Try to handle plain text responses
+                        if (data && !data.startsWith('{')) {
+                            hasContent = true;
+                            fullContent += data;
+                            updateMessageContent(messageElement, fullContent);
+                        }
+                    }
+                } else if (line.trim()) {
+                    // Handle responses that don't follow SSE format
+                    try {
+                        const json = JSON.parse(line);
+                        const content = json.choices?.[0]?.message?.content || json.choices?.[0]?.delta?.content;
+                        if (content) {
+                            hasContent = true;
+                            fullContent += content;
+                            updateMessageContent(messageElement, fullContent);
+                        }
+                    } catch (e) {
+                        // Not JSON, might be plain text
+                        if (line.trim() && !line.startsWith('data:')) {
+                            hasContent = true;
+                            fullContent += line + '\n';
+                            updateMessageContent(messageElement, fullContent);
+                        }
                     }
                 }
             }
         }
+        
+        if (!hasContent && fullContent.length === 0) {
+            throw new Error('No content received from API. Please check your local AI service configuration.');
+        }
+    } catch (error) {
+        console.error('Stream handling error:', error);
+        throw error;
     } finally {
         reader.releaseLock();
     }

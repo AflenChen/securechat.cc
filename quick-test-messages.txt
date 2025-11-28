@@ -1,0 +1,22 @@
+# 快速测试消息 - 复制粘贴使用
+
+## 1. 销售场景 (Sales B2B)
+Hi, we're looking for an enterprise solution for our team of 200 people. Can you provide more information about your pricing and features?
+
+## 2. 客服场景 (Customer Service Gentle)
+I'm really frustrated. I ordered this product 3 weeks ago and it still hasn't arrived. This is unacceptable!
+
+## 3. 面试场景 (Interview)
+Thank you for the interview opportunity. I wanted to follow up and ask about the next steps in the hiring process.
+
+## 4. 客户经理场景 (Account Manager)
+Hi, we've been using your service for 6 months. Our contract is up for renewal and we're considering competitors. What can you offer?
+
+## 5. 商务谈判 (Business Negotiation Strong)
+We understand your position, but our budget is fixed at $50k. If you can't meet this price, we'll have to look elsewhere.
+
+## 6. 简单测试
+Hello, can you help me craft a professional response?
+
+## 7. 复杂场景
+I need to respond to a client who is upset about a delayed delivery. They're threatening to cancel their contract worth $100k. How should I handle this professionally while maintaining the relationship?
