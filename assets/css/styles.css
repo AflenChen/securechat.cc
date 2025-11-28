@@ -310,6 +310,18 @@ body {
     border-left: 3px solid var(--accent-color);
 }
 
+.gradient-link {
+    color: #10a37f;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.gradient-link:hover {
+    color: #0d8f6e;
+    text-decoration: underline;
+}
+
 .message-actions {
     display: flex;
     gap: 8px;

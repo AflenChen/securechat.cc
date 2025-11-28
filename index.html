@@ -91,28 +91,42 @@
         "name": "How does Secure Chat work?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Secure Chat uses Gradient Parallax local AI to provide contextual reply suggestions. Configure your local model endpoint on first use, then select a persona, paste the message you received, and get 3 different reply style suggestions with explanations and risk analysis. All processing happens on your local machine."
+          "text": "Secure Chat is powered by Gradient Parallax local AI to provide contextual reply suggestions with 20+ personas. Configure your local model endpoint on first use, then select a persona, paste the message you received, and get 3 different reply style suggestions with explanations and risk analysis. All processing happens on your local machine using your local AI model - no cloud services involved."
         }
       }, {
         "@type": "Question",
         "name": "Is my data secure and private?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes! Secure Chat uses Gradient Parallax local AI, which means all processing happens on your local machine or your own server. No conversations are uploaded to any external server or cloud. Your data stays completely private and secure."
+          "text": "Yes! Secure Chat uses Gradient Parallax local AI, which means all processing happens entirely on your local machine using your local model. No conversations are uploaded to any external server, cloud service, or third-party API. Your data never leaves your device. This is true privacy-first AI powered by your local model."
         }
       }, {
         "@type": "Question",
         "name": "What is Gradient Parallax?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Gradient Parallax is a local AI platform that allows you to run AI models on your own infrastructure. Secure Chat integrates with Gradient Parallax to provide private, secure AI-powered chat assistance without sending data to external servers."
+          "text": "Gradient Parallax is a local AI platform that allows you to run AI models on your own infrastructure. Secure Chat integrates with Gradient Parallax to provide private, secure AI-powered chat assistance. All processing happens on your local machine using your local model - no data is sent to external servers or cloud services."
         }
       }, {
         "@type": "Question",
         "name": "How do I configure the local model?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "On first use, you'll be prompted to configure your local model endpoint. Enter your Gradient Parallax API endpoint URL and API key. This configuration is stored locally in your browser and never shared."
+          "text": "On first use, you'll be prompted to configure your local model endpoint. Enter your Gradient Parallax local AI endpoint URL (default: http://localhost:3000/v1/chat/completions). API key is optional for local models. This configuration is stored locally in your browser and never shared. Your local model runs entirely on your machine."
+        }
+      }, {
+        "@type": "Question",
+        "name": "Do I need an internet connection?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No! Once your local model is configured and running, Secure Chat works completely offline. All AI processing happens on your local machine using Gradient Parallax. No internet connection is required after initial setup."
+        }
+      }, {
+        "@type": "Question",
+        "name": "What local models are supported?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Secure Chat works with any local AI model that supports the OpenAI-compatible API format through Gradient Parallax. This includes popular models like Llama, Mistral, and other open-source models that you can run locally on your machine."
         }
       }]
     }
@@ -140,7 +154,7 @@
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2>💬 Secure Chat</h2>
-                <p class="sidebar-subtitle">Local AI Powered by Gradient Parallax</p>
+                <p class="sidebar-subtitle">Powered by <a href="https://www.gradient.network/" target="_blank" rel="noopener noreferrer" class="gradient-link">Gradient Parallax</a> • 20+ Personas</p>
             </div>
             
             <div class="sidebar-content">
@@ -164,7 +178,7 @@
                     </div>
                     <div class="info-badge">
                         <span class="badge-icon">⚡</span>
-                        <span>Gradient Parallax</span>
+                        <span><a href="https://www.gradient.network/" target="_blank" rel="noopener noreferrer" class="gradient-link">Gradient Parallax</a></span>
                     </div>
                 </div>
             </div>
@@ -177,8 +191,8 @@
                 <div class="welcome-message">
                     <div class="welcome-icon">💬</div>
                     <h2>Welcome to Secure Chat</h2>
-                    <p>Your privacy-first AI chat assistant powered by <strong>Gradient Parallax local AI</strong></p>
-                    <p class="welcome-hint">Select a persona and start chatting to get contextual reply suggestions.</p>
+                    <p>Your privacy-first AI chat assistant powered by <strong><a href="https://www.gradient.network/" target="_blank" rel="noopener noreferrer" style="color: #10a37f; text-decoration: none;">Gradient Parallax</a></strong> local AI</p>
+                    <p class="welcome-hint">Select a persona and start chatting to get contextual reply suggestions with 20+ personas.</p>
                 </div>
             </div>
 
@@ -203,7 +217,7 @@
                     </div>
                 </div>
                 <div class="input-footer">
-                    <span class="footer-text">Powered by Gradient Parallax Local AI • Your data stays private</span>
+                    <span class="footer-text">Powered by <a href="https://www.gradient.network/" target="_blank" rel="noopener noreferrer" style="color: #10a37f; text-decoration: none;">Gradient Parallax</a> Local AI • Your data stays private</span>
                 </div>
             </div>
         </div>
@@ -218,7 +232,7 @@
             </div>
             <div class="modal-body">
                 <p class="modal-description">
-                    Configure your <strong>local AI model</strong> endpoint. All processing happens on your local machine. Default: <code>http://localhost:3000/v1/chat/completions</code>
+                    Configure your <strong>local AI model</strong> endpoint powered by <a href="https://www.gradient.network/" target="_blank" rel="noopener noreferrer" class="gradient-link">Gradient Parallax</a>. All processing happens on your local machine using your local model. Default: <code>http://localhost:3000/v1/chat/completions</code>
                 </p>
                 
                 <div class="form-group">
