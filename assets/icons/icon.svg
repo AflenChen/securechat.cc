@@ -1,0 +1,38 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#gradient)"/>
+  
+  <!-- Chat bubble -->
+  <path d="M 146 196 Q 146 186 156 186 L 356 186 Q 366 186 366 196 L 366 316 Q 366 326 356 326 L 196 326 L 176 346 L 186 326 Q 176 326 176 316 Z" 
+        fill="rgba(255, 255, 255, 0.95)"/>
+  
+  <!-- Lock icon -->
+  <g transform="translate(256, 246)">
+    <!-- Lock body -->
+    <rect x="-25" y="0" width="50" height="35" fill="#667eea" rx="3"/>
+    <!-- Lock shackle -->
+    <path d="M -25 0 Q -25 -15 0 -15 Q 25 -15 25 0" 
+          stroke="#667eea" 
+          stroke-width="6" 
+          fill="none" 
+          stroke-linecap="round"/>
+    <!-- Lock keyhole -->
+    <circle cx="0" cy="10" r="8" fill="rgba(255, 255, 255, 0.9)"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="256" y="412" 
+        font-family="Arial, sans-serif" 
+        font-size="50" 
+        font-weight="bold" 
+        fill="#ffffff" 
+        text-anchor="middle">CHAT</text>
+</svg>
+

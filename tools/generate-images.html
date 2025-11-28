@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Generator - Secure Chat</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+        }
+        .canvas-container {
+            margin: 20px 0;
+            border: 2px dashed #ddd;
+            padding: 20px;
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            margin: 10px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            font-weight: 600;
+        }
+        button:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        .instructions {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .instructions h3 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        .instructions ol {
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Secure Chat - Image Generator</h1>
+        <p>Use this tool to generate required icons and images. Right-click on canvas to save images.</p>
+        
+        <div class="canvas-container">
+            <h3>Favicon (64x64)</h3>
+            <canvas id="favicon" width="64" height="64"></canvas>
+            <button onclick="downloadCanvas('favicon', 'favicon.png')">Download PNG</button>
+            <p><small>Note: May need to convert to .ico format using <a href="https://favicon.io/favicon-converter/" target="_blank">Favicon.io</a></small></p>
+        </div>
+        
+        <div class="canvas-container">
+            <h3>Apple Touch Icon (180x180)</h3>
+            <canvas id="apple" width="180" height="180"></canvas>
+            <button onclick="downloadCanvas('apple', 'apple-touch-icon.png')">Download PNG</button>
+        </div>
+        
+        <div class="canvas-container">
+            <h3>PWA Icon 192x192</h3>
+            <canvas id="icon192" width="192" height="192"></canvas>
+            <button onclick="downloadCanvas('icon192', 'icon-192x192.png')">Download PNG</button>
+        </div>
+        
+        <div class="canvas-container">
+            <h3>PWA Icon 512x512</h3>
+            <canvas id="icon512" width="512" height="512"></canvas>
+            <button onclick="downloadCanvas('icon512', 'icon-512x512.png')">Download PNG</button>
+        </div>
+        
+        <div class="canvas-container">
+            <h3>OG Image (1200x630) - Social Media Sharing</h3>
+            <canvas id="ogImage" width="1200" height="630" style="max-width: 100%; height: auto;"></canvas>
+            <button onclick="downloadCanvas('ogImage', 'og-image.jpg', 'image/jpeg', 0.9)">Download JPG</button>
+        </div>
+        
+        <div class="instructions">
+            <h3>📋 Instructions</h3>
+            <ol>
+                <li>Click the "Download" button below each canvas to save the image</li>
+                <li>For favicon.ico, download PNG first, then convert using <a href="https://favicon.io/favicon-converter/" target="_blank">Favicon.io</a></li>
+                <li>Upload all image files to the website root directory</li>
+                <li>Verify images display correctly</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+            
+            // Draw gradient background
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const scale = size / 512;
+            
+            // Draw chat bubble
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            const bubbleWidth = 220 * scale;
+            const bubbleHeight = 160 * scale;
+            const bubbleX = centerX - bubbleWidth / 2;
+            const bubbleY = centerY - bubbleHeight / 2 - 20 * scale;
+            
+            // Rounded rectangle for chat bubble
+            const radius = 20 * scale;
+            ctx.beginPath();
+            ctx.moveTo(bubbleX + radius, bubbleY);
+            ctx.lineTo(bubbleX + bubbleWidth - radius, bubbleY);
+            ctx.quadraticCurveTo(bubbleX + bubbleWidth, bubbleY, bubbleX + bubbleWidth, bubbleY + radius);
+            ctx.lineTo(bubbleX + bubbleWidth, bubbleY + bubbleHeight - radius);
+            ctx.quadraticCurveTo(bubbleX + bubbleWidth, bubbleY + bubbleHeight, bubbleX + bubbleWidth - radius, bubbleY + bubbleHeight);
+            ctx.lineTo(bubbleX + radius, bubbleY + bubbleHeight);
+            ctx.quadraticCurveTo(bubbleX, bubbleY + bubbleHeight, bubbleX, bubbleY + bubbleHeight - radius);
+            ctx.lineTo(bubbleX, bubbleY + radius);
+            ctx.quadraticCurveTo(bubbleX, bubbleY, bubbleX + radius, bubbleY);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Chat bubble tail
+            ctx.beginPath();
+            ctx.moveTo(bubbleX + 40 * scale, bubbleY + bubbleHeight);
+            ctx.lineTo(bubbleX + 20 * scale, bubbleY + bubbleHeight + 15 * scale);
+            ctx.lineTo(bubbleX + 60 * scale, bubbleY + bubbleHeight);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Draw lock icon inside bubble
+            const lockSize = 50 * scale;
+            const lockX = centerX;
+            const lockY = centerY - 10 * scale;
+            
+            // Lock body
+            ctx.fillStyle = '#667eea';
+            ctx.fillRect(lockX - lockSize / 2, lockY, lockSize, lockSize * 0.7);
+            
+            // Lock shackle
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 6 * scale;
+            ctx.beginPath();
+            ctx.arc(lockX, lockY - 5 * scale, lockSize * 0.4, Math.PI, 0, false);
+            ctx.stroke();
+            
+            // Lock keyhole
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.beginPath();
+            ctx.arc(lockX, lockY + lockSize * 0.2, 8 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Text for larger icons
+            if (size >= 180) {
+                ctx.fillStyle = '#ffffff';
+                ctx.font = `bold ${50 * scale}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('CHAT', centerX, centerY + 100 * scale);
+            }
+        }
+        
+        function drawOGImage(canvas) {
+            const ctx = canvas.getContext('2d');
+            const width = 1200;
+            const height = 630;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+            
+            // Draw gradient background
+            const gradient = ctx.createLinearGradient(0, 0, width, height);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+            
+            // Decorative circles
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.beginPath();
+            ctx.arc(width - 100, 100, 200, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(100, height - 100, 200, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Large chat bubble icon
+            const iconX = width / 2;
+            const iconY = height / 2 - 80;
+            const bubbleSize = 200;
+            
+            // Chat bubble
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            const bubbleWidth = 300;
+            const bubbleHeight = 220;
+            const bubbleX = iconX - bubbleWidth / 2;
+            const bubbleY = iconY - bubbleHeight / 2;
+            
+            // Rounded rectangle
+            const radius = 30;
+            ctx.beginPath();
+            ctx.moveTo(bubbleX + radius, bubbleY);
+            ctx.lineTo(bubbleX + bubbleWidth - radius, bubbleY);
+            ctx.quadraticCurveTo(bubbleX + bubbleWidth, bubbleY, bubbleX + bubbleWidth, bubbleY + radius);
+            ctx.lineTo(bubbleX + bubbleWidth, bubbleY + bubbleHeight - radius);
+            ctx.quadraticCurveTo(bubbleX + bubbleWidth, bubbleY + bubbleHeight, bubbleX + bubbleWidth - radius, bubbleY + bubbleHeight);
+            ctx.lineTo(bubbleX + radius, bubbleY + bubbleHeight);
+            ctx.quadraticCurveTo(bubbleX, bubbleY + bubbleHeight, bubbleX, bubbleY + bubbleHeight - radius);
+            ctx.lineTo(bubbleX, bubbleY + radius);
+            ctx.quadraticCurveTo(bubbleX, bubbleY, bubbleX + radius, bubbleY);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Chat bubble tail
+            ctx.beginPath();
+            ctx.moveTo(bubbleX + 60, bubbleY + bubbleHeight);
+            ctx.lineTo(bubbleX + 30, bubbleY + bubbleHeight + 25);
+            ctx.lineTo(bubbleX + 90, bubbleY + bubbleHeight);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Lock icon inside bubble
+            const lockSize = 80;
+            const lockX = iconX;
+            const lockY = iconY + 20;
+            
+            // Lock body
+            ctx.fillStyle = '#667eea';
+            ctx.fillRect(lockX - lockSize / 2, lockY, lockSize, lockSize * 0.7);
+            
+            // Lock shackle
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 10;
+            ctx.beginPath();
+            ctx.arc(lockX, lockY - 8, lockSize * 0.4, Math.PI, 0, false);
+            ctx.stroke();
+            
+            // Lock keyhole
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.beginPath();
+            ctx.arc(lockX, lockY + lockSize * 0.2, 12, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Title
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 72px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 4;
+            ctx.fillText('Secure Chat', width / 2, iconY + 200);
+            
+            // Subtitle
+            ctx.font = '36px Arial';
+            ctx.shadowBlur = 5;
+            ctx.fillText('AI Chat Helper & Reply Assistant', width / 2, iconY + 270);
+            
+            // Domain
+            ctx.font = '28px Arial';
+            ctx.shadowBlur = 3;
+            ctx.fillText('securechat.cc', width / 2, height - 40);
+            
+            // Reset shadow
+            ctx.shadowBlur = 0;
+        }
+        
+        function downloadCanvas(canvasId, filename, mimeType = 'image/png', quality = 1.0) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL(mimeType, quality);
+            link.click();
+        }
+        
+        // Initialize all canvases
+        window.onload = function() {
+            drawIcon(document.getElementById('favicon'), 64);
+            drawIcon(document.getElementById('apple'), 180);
+            drawIcon(document.getElementById('icon192'), 192);
+            drawIcon(document.getElementById('icon512'), 512);
+            drawOGImage(document.getElementById('ogImage'));
+        };
+    </script>
+</body>
+</html>
+
