@@ -232,7 +232,7 @@
             </div>
             <div class="modal-body">
                 <p class="modal-description">
-                    Configure your <strong>local AI model</strong> endpoint powered by <a href="https://www.gradient.network/" target="_blank" rel="noopener noreferrer" class="gradient-link">Gradient Parallax</a>. All processing happens on your local machine using your local model. Default: <code>http://localhost:3000/v1/chat/completions</code>
+                    Configure your <strong>local AI model</strong> endpoint powered by <a href="https://www.gradient.network/" target="_blank" rel="noopener noreferrer" class="gradient-link">Gradient Parallax</a>. All processing happens on your local machine using your local model. Default: <code>http://localhost:3001/v1/chat/completions</code>
                 </p>
                 
                 <div class="form-group">
@@ -243,7 +243,7 @@
                         class="form-input" 
                         placeholder="http://localhost:3000/v1/chat/completions"
                     >
-                    <small class="form-hint">Your local AI API endpoint (e.g., http://localhost:3000/v1/chat/completions)</small>
+                    <small class="form-hint">Your local AI API endpoint (e.g., http://localhost:3001/v1/chat/completions)</small>
                 </div>
 
                 <div class="form-group">
@@ -265,7 +265,21 @@
                         class="form-input" 
                         placeholder="local-model"
                     >
-                    <small class="form-hint">Model identifier (e.g., local-model, llama2-7b-chat)</small>
+                    <small class="form-hint">Model identifier (e.g., local-model, Qwen/Qwen3-0.6B, llama2-7b-chat)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="maxTokens">Max Tokens</label>
+                    <input 
+                        type="number" 
+                        id="maxTokens" 
+                        class="form-input" 
+                        placeholder="2048"
+                        value="2048"
+                        min="1"
+                        max="8192"
+                    >
+                    <small class="form-hint">Maximum tokens in response (default: 2048)</small>
                 </div>
 
                 <div class="form-group">

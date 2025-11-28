@@ -140,9 +140,10 @@ function checkInitialConfig() {
     if (!config) {
         // Set default local model configuration
         const defaultConfig = {
-            apiEndpoint: 'http://localhost:3000/v1/chat/completions',
+            apiEndpoint: 'http://localhost:3001/v1/chat/completions',
             apiKey: '', // No API key needed for local model
             modelName: 'local-model',
+            maxTokens: 2048,
             stream: true
         };
         saveConfig(defaultConfig);
@@ -234,17 +235,19 @@ function showSettingsModal() {
     const config = getConfig();
     
     if (config) {
-        document.getElementById('apiEndpoint').value = config.apiEndpoint || 'http://localhost:3000/v1/chat/completions';
+        document.getElementById('apiEndpoint').value = config.apiEndpoint || 'http://localhost:3001/v1/chat/completions';
         document.getElementById('apiKey').value = config.apiKey || '';
         document.getElementById('modelName').value = config.modelName || 'local-model';
+        document.getElementById('maxTokens').value = config.maxTokens || 2048;
         const streamCheckbox = document.getElementById('streamEnabled');
         if (streamCheckbox) {
             streamCheckbox.checked = config.stream !== false;
         }
     } else {
         // Set defaults
-        document.getElementById('apiEndpoint').value = 'http://localhost:3000/v1/chat/completions';
+        document.getElementById('apiEndpoint').value = 'http://localhost:3001/v1/chat/completions';
         document.getElementById('modelName').value = 'local-model';
+        document.getElementById('maxTokens').value = 2048;
     }
     
     modal.classList.add('active');
@@ -259,6 +262,7 @@ function saveConfiguration() {
     const apiEndpoint = document.getElementById('apiEndpoint').value.trim();
     const apiKey = document.getElementById('apiKey').value.trim();
     const modelName = document.getElementById('modelName').value.trim();
+    const maxTokens = parseInt(document.getElementById('maxTokens').value) || 2048;
     const streamEnabled = document.getElementById('streamEnabled')?.checked !== false;
     
     if (!apiEndpoint) {
@@ -270,6 +274,7 @@ function saveConfiguration() {
         apiEndpoint,
         apiKey: apiKey || '', // API key is optional for local models
         modelName: modelName || 'local-model',
+        maxTokens: maxTokens,
         stream: streamEnabled
     };
     
@@ -420,22 +425,30 @@ async function generateReplyWithAIStream(persona, userMessage, messageElement) {
     
     const stream = config.stream !== false; // Default to true for local models
     
+    // Build messages array - some APIs support message IDs, but we'll keep it simple
+    const messages = [
+        {
+            role: 'system',
+            content: `${persona.systemPrompt}\n\nProvide three reply suggestions in different styles:\n1. Professional - formal and structured\n2. Friendly - warm and approachable\n3. Assertive - confident and direct\n\nFormat your response as:\n\n**Professional:**\n[reply]\n\n**Friendly:**\n[reply]\n\n**Assertive:**\n[reply]\n\n**Analysis:**\n[Why this reply works and bottom-line advice]`
+        },
+        {
+            role: 'user',
+            content: `Message received: "${userMessage}"\n\nGenerate three reply suggestions in the requested format.`
+        }
+    ];
+    
     const requestBody = {
         model: config.modelName || 'local-model',
-        messages: [
-            {
-                role: 'system',
-                content: `${persona.systemPrompt}\n\nProvide three reply suggestions in different styles:\n1. Professional - formal and structured\n2. Friendly - warm and approachable\n3. Assertive - confident and direct\n\nFormat your response as:\n\n**Professional:**\n[reply]\n\n**Friendly:**\n[reply]\n\n**Assertive:**\n[reply]\n\n**Analysis:**\n[Why this reply works and bottom-line advice]`
-            },
-            {
-                role: 'user',
-                content: `Message received: "${userMessage}"\n\nGenerate three reply suggestions in the requested format.`
-            }
-        ],
+        messages: messages,
         temperature: 0.7,
-        max_tokens: 1024,
+        max_tokens: config.maxTokens || 2048,
         stream: stream
     };
+    
+    // Add sampling_params if needed (some local models support this)
+    if (config.samplingParams) {
+        requestBody.sampling_params = config.samplingParams;
+    }
     
     const headers = {
         'Content-Type': 'application/json'
@@ -497,6 +510,14 @@ async function handleStreamResponse(response, messageElement) {
     let fullContent = '';
     let hasContent = false;
     
+    // Filter out unwanted content patterns
+    const filterContent = (content) => {
+        // Remove reasoning tags like <think>...</think>
+        content = content.replace(/<think>[\s\S]*?<\/redacted_reasoning>/gi, '');
+        content = content.replace(/<think>/gi, '');
+        return content;
+    };
+    
     try {
         while (true) {
             const { done, value } = await reader.read();
@@ -518,47 +539,67 @@ async function handleStreamResponse(response, messageElement) {
                     
                     if (data === '[DONE]') {
                         console.log('Received [DONE] signal');
+                        // Filter final content before returning
+                        fullContent = filterContent(fullContent);
+                        updateMessageContent(messageElement, fullContent);
                         return;
                     }
                     
                     try {
                         const json = JSON.parse(data);
-                        const delta = json.choices?.[0]?.delta?.content;
+                        const choice = json.choices?.[0];
                         
-                        if (delta) {
-                            hasContent = true;
-                            fullContent += delta;
-                            updateMessageContent(messageElement, fullContent);
+                        if (choice) {
+                            // Check for finish_reason
+                            if (choice.finish_reason === 'stop') {
+                                console.log('Received stop signal');
+                                fullContent = filterContent(fullContent);
+                                updateMessageContent(messageElement, fullContent);
+                                return;
+                            }
+                            
+                            // Get content from delta
+                            const delta = choice.delta;
+                            if (delta && delta.content !== null && delta.content !== undefined) {
+                                const content = String(delta.content);
+                                if (content) {
+                                    hasContent = true;
+                                    fullContent += content;
+                                    // Filter and update in real-time
+                                    const filtered = filterContent(fullContent);
+                                    updateMessageContent(messageElement, filtered);
+                                }
+                            }
                         }
                     } catch (e) {
-                        console.warn('Failed to parse JSON:', data, e);
-                        // Try to handle plain text responses
-                        if (data && !data.startsWith('{')) {
-                            hasContent = true;
-                            fullContent += data;
-                            updateMessageContent(messageElement, fullContent);
-                        }
+                        console.warn('Failed to parse JSON:', data.substring(0, 100), e);
+                        // Skip invalid JSON lines
                     }
-                } else if (line.trim()) {
-                    // Handle responses that don't follow SSE format
+                } else if (line.trim() && !line.startsWith('data:')) {
+                    // Handle responses that don't follow SSE format exactly
                     try {
                         const json = JSON.parse(line);
-                        const content = json.choices?.[0]?.message?.content || json.choices?.[0]?.delta?.content;
-                        if (content) {
-                            hasContent = true;
-                            fullContent += content;
-                            updateMessageContent(messageElement, fullContent);
+                        const choice = json.choices?.[0];
+                        if (choice) {
+                            const content = choice.message?.content || choice.delta?.content;
+                            if (content) {
+                                hasContent = true;
+                                fullContent += String(content);
+                                const filtered = filterContent(fullContent);
+                                updateMessageContent(messageElement, filtered);
+                            }
                         }
                     } catch (e) {
-                        // Not JSON, might be plain text
-                        if (line.trim() && !line.startsWith('data:')) {
-                            hasContent = true;
-                            fullContent += line + '\n';
-                            updateMessageContent(messageElement, fullContent);
-                        }
+                        // Not JSON, skip
                     }
                 }
             }
+        }
+        
+        // Final filter before completion
+        fullContent = filterContent(fullContent);
+        if (fullContent) {
+            updateMessageContent(messageElement, fullContent);
         }
         
         if (!hasContent && fullContent.length === 0) {
