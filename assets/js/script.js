@@ -953,10 +953,12 @@ function updateMessageContent(messageElement, content, isError = false) {
 
 function formatMessage(content) {
     // Extract and format reply styles with individual copy buttons
-    const professionalMatch = content.match(/\*\*Professional:\*\*\s*([^*]+?)(?=\*\*|$)/s);
-    const friendlyMatch = content.match(/\*\*Friendly:\*\*\s*([^*]+?)(?=\*\*|$)/s);
-    const assertiveMatch = content.match(/\*\*Assertive:\*\*\s*([^*]+?)(?=\*\*|$)/s);
-    const analysisMatch = content.match(/\*\*Analysis:\*\*\s*(.+?)(?=\*\*|$)/s);
+    // Use more flexible regex patterns that handle various formats
+    const professionalMatch = content.match(/\*\*Professional:\*\*\s*([\s\S]*?)(?=\*\*(?:Friendly|Assertive|Analysis):|$)/);
+    const friendlyMatch = content.match(/\*\*Friendly:\*\*\s*([\s\S]*?)(?=\*\*(?:Professional|Assertive|Analysis):|$)/);
+    const assertiveMatch = content.match(/\*\*Assertive:\*\*\s*([\s\S]*?)(?=\*\*(?:Professional|Friendly|Analysis):|$)/);
+    // Analysis can be at the end, so match until end of string
+    const analysisMatch = content.match(/\*\*Analysis:\*\*\s*([\s\S]*?)$/);
     
     if (professionalMatch || friendlyMatch || assertiveMatch) {
         let html = '<div class="reply-styles">';
@@ -1001,12 +1003,16 @@ function formatMessage(content) {
             `;
         }
         if (analysisMatch) {
-            html += `
-                <div class="reply-card" style="border-left-color: #10a37f;">
-                    <div class="reply-header">💡 Analysis</div>
-                    <div class="reply-content">${analysisMatch[1].trim().replace(/\n/g, '<br>')}</div>
-                </div>
-            `;
+            const analysisText = analysisMatch[1].trim();
+            // Only show analysis if it has content
+            if (analysisText && analysisText !== '-' && analysisText.length > 0) {
+                html += `
+                    <div class="reply-card" style="border-left-color: #10a37f;">
+                        <div class="reply-header">💡 Analysis</div>
+                        <div class="reply-content">${analysisText.replace(/\n/g, '<br>')}</div>
+                    </div>
+                `;
+            }
         }
         
         html += '</div>';
