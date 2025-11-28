@@ -650,7 +650,7 @@ async function sendMessage() {
         let errorMessage = 'Sorry, I encountered an error. ';
         
         if (error.message.includes('Failed to connect')) {
-            errorMessage += 'Please make sure your local AI service is running at ' + (getConfig()?.apiEndpoint || 'http://localhost:3001/v1/chat/completions');
+            errorMessage += 'Please start your local AI service and ensure it is running at ' + (getConfig()?.apiEndpoint || 'http://localhost:3001/v1/chat/completions') + '. Check that the service is accessible and try again.';
         } else if (error.message.includes('not configured')) {
             errorMessage += 'Please configure your local AI endpoint in settings (click the ⚙️ button).';
         } else {
@@ -757,7 +757,7 @@ async function generateReplyWithAIStream(persona, userMessage, messageElement) {
     } catch (error) {
         console.error('Fetch error:', error);
         if (error.name === 'TypeError' && error.message.includes('fetch')) {
-            throw new Error('Failed to connect to local AI service. Please check if the service is running at ' + config.apiEndpoint);
+            throw new Error('Failed to connect to local AI service. Please start your local AI service and ensure it is running at ' + config.apiEndpoint + '. Make sure the service is accessible and supports the OpenAI-compatible API format.');
         }
         throw error;
     }
@@ -863,7 +863,7 @@ async function handleStreamResponse(response, messageElement) {
         }
         
         if (!hasContent && fullContent.length === 0) {
-            throw new Error('No content received from API. Please check your local AI service configuration.');
+            throw new Error('No content received from API. Please check your local AI service configuration and ensure the service is running and responding correctly.');
         }
     } catch (error) {
         console.error('Stream handling error:', error);
