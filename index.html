@@ -218,7 +218,7 @@
             </div>
             <div class="modal-body">
                 <p class="modal-description">
-                    Configure your <strong>Gradient Parallax</strong> local AI endpoint. All processing happens on your local machine or server.
+                    Configure your <strong>local AI model</strong> endpoint. All processing happens on your local machine. Default: <code>http://localhost:3000/v1/chat/completions</code>
                 </p>
                 
                 <div class="form-group">
@@ -227,20 +227,20 @@
                         type="url" 
                         id="apiEndpoint" 
                         class="form-input" 
-                        placeholder="https://api.gradient.ai/v1/chat/completions"
+                        placeholder="http://localhost:3000/v1/chat/completions"
                     >
-                    <small class="form-hint">Your Gradient Parallax API endpoint</small>
+                    <small class="form-hint">Your local AI API endpoint (e.g., http://localhost:3000/v1/chat/completions)</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="apiKey">API Key</label>
+                    <label for="apiKey">API Key (Optional)</label>
                     <input 
                         type="password" 
                         id="apiKey" 
                         class="form-input" 
-                        placeholder="Enter your API key"
+                        placeholder="Leave empty for local models"
                     >
-                    <small class="form-hint">Your Gradient Parallax API key (stored locally)</small>
+                    <small class="form-hint">API key (optional for local models, required for remote APIs)</small>
                 </div>
 
                 <div class="form-group">
@@ -249,9 +249,22 @@
                         type="text" 
                         id="modelName" 
                         class="form-input" 
-                        placeholder="llama2-7b-chat"
+                        placeholder="local-model"
                     >
-                    <small class="form-hint">Model identifier (e.g., llama2-7b-chat)</small>
+                    <small class="form-hint">Model identifier (e.g., local-model, llama2-7b-chat)</small>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input 
+                            type="checkbox" 
+                            id="streamEnabled" 
+                            checked
+                            style="width: auto;"
+                        >
+                        <span>Enable Streaming (real-time response)</span>
+                    </label>
+                    <small class="form-hint">Stream responses for real-time display</small>
                 </div>
 
                 <div class="form-actions">

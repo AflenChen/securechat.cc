@@ -14,7 +14,7 @@ function saveConfig(config) {
 
 function checkConfig() {
     const config = getConfig();
-    if (!config || !config.apiEndpoint || !config.apiKey) {
+    if (!config || !config.apiEndpoint) {
         showSettingsModal();
         return false;
     }
@@ -136,10 +136,16 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function checkInitialConfig() {
-    if (!getConfig()) {
-        setTimeout(() => {
-            showSettingsModal();
-        }, 500);
+    const config = getConfig();
+    if (!config) {
+        // Set default local model configuration
+        const defaultConfig = {
+            apiEndpoint: 'http://localhost:3000/v1/chat/completions',
+            apiKey: '', // No API key needed for local model
+            modelName: 'local-model',
+            stream: true
+        };
+        saveConfig(defaultConfig);
     }
 }
 
@@ -228,9 +234,17 @@ function showSettingsModal() {
     const config = getConfig();
     
     if (config) {
-        document.getElementById('apiEndpoint').value = config.apiEndpoint || '';
+        document.getElementById('apiEndpoint').value = config.apiEndpoint || 'http://localhost:3000/v1/chat/completions';
         document.getElementById('apiKey').value = config.apiKey || '';
-        document.getElementById('modelName').value = config.modelName || '';
+        document.getElementById('modelName').value = config.modelName || 'local-model';
+        const streamCheckbox = document.getElementById('streamEnabled');
+        if (streamCheckbox) {
+            streamCheckbox.checked = config.stream !== false;
+        }
+    } else {
+        // Set defaults
+        document.getElementById('apiEndpoint').value = 'http://localhost:3000/v1/chat/completions';
+        document.getElementById('modelName').value = 'local-model';
     }
     
     modal.classList.add('active');
@@ -245,16 +259,18 @@ function saveConfiguration() {
     const apiEndpoint = document.getElementById('apiEndpoint').value.trim();
     const apiKey = document.getElementById('apiKey').value.trim();
     const modelName = document.getElementById('modelName').value.trim();
+    const streamEnabled = document.getElementById('streamEnabled')?.checked !== false;
     
-    if (!apiEndpoint || !apiKey) {
-        showConfigStatus('Please fill in API Endpoint and API Key.', 'error');
+    if (!apiEndpoint) {
+        showConfigStatus('Please fill in API Endpoint.', 'error');
         return;
     }
     
     const config = {
         apiEndpoint,
-        apiKey,
-        modelName: modelName || 'llama2-7b-chat'
+        apiKey: apiKey || '', // API key is optional for local models
+        modelName: modelName || 'local-model',
+        stream: streamEnabled
     };
     
     saveConfig(config);
@@ -268,34 +284,48 @@ function saveConfiguration() {
 function testConnection() {
     const apiEndpoint = document.getElementById('apiEndpoint').value.trim();
     const apiKey = document.getElementById('apiKey').value.trim();
+    const modelName = document.getElementById('modelName').value.trim() || 'local-model';
     
-    if (!apiEndpoint || !apiKey) {
-        showConfigStatus('Please fill in API Endpoint and API Key.', 'error');
+    if (!apiEndpoint) {
+        showConfigStatus('Please fill in API Endpoint.', 'error');
         return;
     }
     
     showConfigStatus('Testing connection...', 'success');
     
-    // Test with a simple request
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    
+    if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+    
+    // Test with a simple non-streaming request
     fetch(apiEndpoint, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
+        headers: headers,
         body: JSON.stringify({
-            model: document.getElementById('modelName').value || 'llama2-7b-chat',
+            model: modelName,
             messages: [
                 { role: 'user', content: 'Hello' }
             ],
-            max_tokens: 10
+            max_tokens: 10,
+            stream: false
         })
     })
     .then(response => {
         if (response.ok) {
+            return response.json();
+        } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+    })
+    .then(data => {
+        if (data.choices && data.choices[0]) {
             showConfigStatus('✅ Connection successful!', 'success');
         } else {
-            showConfigStatus('❌ Connection failed. Please check your credentials.', 'error');
+            showConfigStatus('⚠️ Connection successful but unexpected response format.', 'error');
         }
     })
     .catch(error => {
@@ -340,53 +370,58 @@ async function sendMessage() {
     // Add user message to chat
     addMessage('user', userMessage);
     
-    // Show loading
-    showLoading(true);
+    // Add AI message placeholder for streaming
+    const aiMessageElement = addMessage('ai', '', persona, false, true);
     
     try {
-        // Generate reply using Gradient Parallax API
-        const reply = await generateReplyWithAI(persona, userMessage);
-        
-        // Add AI reply to chat
-        addMessage('ai', reply, persona);
+        // Generate reply using local AI with streaming
+        await generateReplyWithAIStream(persona, userMessage, aiMessageElement);
         
         // Save to history
         saveChatHistory();
     } catch (error) {
         console.error('Error generating reply:', error);
-        addMessage('ai', 'Sorry, I encountered an error. Please check your local AI configuration.', null, true);
-    } finally {
-        showLoading(false);
+        updateMessageContent(aiMessageElement, 'Sorry, I encountered an error. Please check your local AI configuration. Error: ' + error.message, true);
     }
 }
 
 // ============================================
-// Gradient Parallax API Integration
+// Local AI API Integration with Streaming
 // ============================================
-async function generateReplyWithAI(persona, userMessage) {
+async function generateReplyWithAIStream(persona, userMessage, messageElement) {
     const config = getConfig();
+    const stream = config.stream !== false; // Default to true for local models
+    
+    const requestBody = {
+        model: config.modelName || 'local-model',
+        messages: [
+            {
+                role: 'system',
+                content: `${persona.systemPrompt}\n\nProvide three reply suggestions in different styles:\n1. Professional - formal and structured\n2. Friendly - warm and approachable\n3. Assertive - confident and direct\n\nFormat your response as:\n\n**Professional:**\n[reply]\n\n**Friendly:**\n[reply]\n\n**Assertive:**\n[reply]\n\n**Analysis:**\n[Why this reply works and bottom-line advice]`
+            },
+            {
+                role: 'user',
+                content: `Message received: "${userMessage}"\n\nGenerate three reply suggestions in the requested format.`
+            }
+        ],
+        temperature: 0.7,
+        max_tokens: 1024,
+        stream: stream
+    };
+    
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    
+    // Add Authorization header only if API key is provided
+    if (config.apiKey) {
+        headers['Authorization'] = `Bearer ${config.apiKey}`;
+    }
     
     const response = await fetch(config.apiEndpoint, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${config.apiKey}`
-        },
-        body: JSON.stringify({
-            model: config.modelName || 'llama2-7b-chat',
-            messages: [
-                {
-                    role: 'system',
-                    content: `${persona.systemPrompt}\n\nProvide three reply suggestions in different styles:\n1. Professional - formal and structured\n2. Friendly - warm and approachable\n3. Assertive - confident and direct\n\nFormat your response as:\n\n**Professional:**\n[reply]\n\n**Friendly:**\n[reply]\n\n**Assertive:**\n[reply]\n\n**Analysis:**\n[Why this reply works and bottom-line advice]`
-                },
-                {
-                    role: 'user',
-                    content: `Message received: "${userMessage}"\n\nGenerate three reply suggestions in the requested format.`
-                }
-            ],
-            temperature: 0.7,
-            max_tokens: 1000
-        })
+        headers: headers,
+        body: JSON.stringify(requestBody)
     });
     
     if (!response.ok) {
@@ -394,14 +429,64 @@ async function generateReplyWithAI(persona, userMessage) {
         throw new Error(`API Error: ${response.status} - ${error}`);
     }
     
-    const data = await response.json();
-    return data.choices[0].message.content;
+    if (stream) {
+        // Handle streaming response
+        await handleStreamResponse(response, messageElement);
+    } else {
+        // Handle non-streaming response
+        const data = await response.json();
+        const content = data.choices[0].message.content;
+        updateMessageContent(messageElement, content);
+    }
+}
+
+async function handleStreamResponse(response, messageElement) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullContent = '';
+    
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) break;
+            
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep incomplete line in buffer
+            
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const data = line.slice(6);
+                    
+                    if (data === '[DONE]') {
+                        return;
+                    }
+                    
+                    try {
+                        const json = JSON.parse(data);
+                        const delta = json.choices?.[0]?.delta?.content;
+                        
+                        if (delta) {
+                            fullContent += delta;
+                            updateMessageContent(messageElement, fullContent);
+                        }
+                    } catch (e) {
+                        // Skip invalid JSON
+                    }
+                }
+            }
+        }
+    } finally {
+        reader.releaseLock();
+    }
 }
 
 // ============================================
 // Chat UI Functions
 // ============================================
-function addMessage(role, content, persona = null, isError = false) {
+function addMessage(role, content, persona = null, isError = false, isStreaming = false) {
     const chatMessages = document.getElementById('chatMessages');
     
     // Remove welcome message if exists
@@ -412,6 +497,9 @@ function addMessage(role, content, persona = null, isError = false) {
     
     const messageDiv = document.createElement('div');
     messageDiv.className = `message message-${role}`;
+    if (isStreaming) {
+        messageDiv.classList.add('streaming');
+    }
     
     const avatar = role === 'user' ? '👤' : (persona ? persona.icon : '🤖');
     const author = role === 'user' ? 'You' : (persona ? persona.name : 'AI Assistant');
@@ -421,9 +509,10 @@ function addMessage(role, content, persona = null, isError = false) {
         <div class="message-content">
             <div class="message-header">
                 <span class="message-author">${author}</span>
+                ${isStreaming ? '<span class="streaming-indicator">●</span>' : ''}
             </div>
             <div class="message-text">${formatMessage(content)}</div>
-            ${role === 'ai' ? `
+            ${role === 'ai' && !isStreaming ? `
                 <div class="message-actions">
                     <button class="action-btn-small" onclick="copyMessage(this)">📋 Copy</button>
                 </div>
@@ -436,6 +525,39 @@ function addMessage(role, content, persona = null, isError = false) {
     
     if (isError) {
         messageDiv.style.borderLeft = '3px solid #ef4444';
+    }
+    
+    return messageDiv;
+}
+
+function updateMessageContent(messageElement, content, isError = false) {
+    const messageText = messageElement.querySelector('.message-text');
+    if (messageText) {
+        messageText.innerHTML = formatMessage(content);
+        
+        // Remove streaming indicator when content is complete
+        const streamingIndicator = messageElement.querySelector('.streaming-indicator');
+        if (streamingIndicator && !isError) {
+            streamingIndicator.remove();
+            messageElement.classList.remove('streaming');
+            
+            // Add copy button when streaming is complete
+            const messageContent = messageElement.querySelector('.message-content');
+            if (!messageContent.querySelector('.message-actions')) {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'message-actions';
+                actionsDiv.innerHTML = '<button class="action-btn-small" onclick="copyMessage(this)">📋 Copy</button>';
+                messageContent.appendChild(actionsDiv);
+            }
+        }
+        
+        // Auto-scroll to bottom
+        const chatMessages = document.getElementById('chatMessages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    if (isError) {
+        messageElement.style.borderLeft = '3px solid #ef4444';
     }
 }
 
