@@ -352,12 +352,7 @@ function initializePersonas() {
         personaSelect.appendChild(option);
     });
     
-    personaSelect.addEventListener('change', function() {
-        const selectedPersonaId = this.value;
-        if (selectedPersonaId) {
-            displayPersonaInfo(personas[selectedPersonaId]);
-        }
-    });
+    // Persona selection is handled in setupEventListeners
 }
 
 function displayPersonaInfo(persona) {
@@ -412,6 +407,50 @@ function setupEventListeners() {
     document.getElementById('settingsModal').addEventListener('click', function(e) {
         if (e.target === this) {
             hideSettingsModal();
+        }
+    });
+    
+    // Persona selection
+    document.getElementById('personaSelect').addEventListener('change', function() {
+        const personaId = this.value;
+        if (personaId) {
+            const persona = personas[personaId];
+            displayPersonaInfo(persona);
+            
+            // Check if we need to create a new session
+            const currentSession = getCurrentSession();
+            if (currentSession && currentSession.messages.length > 0 && currentSession.personaId !== personaId) {
+                // Create new session with new persona
+                const newSession = createSession(personaId);
+                currentSessionId = newSession.id;
+                setCurrentSessionId(newSession.id);
+                renderSessionsList();
+                clearChatMessages();
+            } else {
+                // Update current session persona
+                if (currentSession) {
+                    updateSession(currentSession.id, { personaId: personaId });
+                } else {
+                    ensureSession(personaId);
+                }
+            }
+        } else {
+            document.getElementById('personaDescription').style.display = 'none';
+        }
+    });
+    
+    // New session button
+    document.getElementById('newSessionBtn').addEventListener('click', function() {
+        const personaSelect = document.getElementById('personaSelect');
+        const personaId = personaSelect.value || null;
+        const newSession = createSession(personaId);
+        currentSessionId = newSession.id;
+        setCurrentSessionId(newSession.id);
+        renderSessionsList();
+        clearChatMessages();
+        
+        if (personaId) {
+            displayPersonaInfo(personas[personaId]);
         }
     });
 }
